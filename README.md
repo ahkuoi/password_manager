@@ -19,14 +19,14 @@ To install and run PassGen, ensure you have Python 3.x installed and follow thes
     Clone or download the repository to your local machine.
     Install required dependencies:
 
-$pip install cryptography
+    $pip install cryptography
 
 Run the program using Python:
 
-$python3 passgen.py    
+    $python3 passgen.py    
 
 Security
 ---------
 
-  Password Hashing: The master password is hashed using SHA-256 for security.
-  Password Encryption: All stored passwords are encrypted using Fernet encryption, which ensures that your passwords are protected even if someone gains access to your database file.
+  Password Hashing
+  Password Encryption
