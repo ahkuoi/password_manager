@@ -4,12 +4,13 @@ import time
 import random
 import string
 import hashlib
+import cryptography
 from getpass import getpass
 from cryptography.fernet import Fernet
 
 DB_FILE = "passwords.db"
 
-# Updated ASCII Art Banner
+
 def display_banner():
     banner = """
     ██████╗  █████╗ ███████╗███████╗ ██████╗  ██████╗ ███████╗
@@ -18,9 +19,9 @@ def display_banner():
     ██╔═══╝ ██╔══██║╚════██║╚════██║██║   ██║██╔═══╝ ╚════██║
     ██║     ██║  ██║███████║███████║╚██████╔╝██║     ███████║
     ╚═╝     ╚═╝  ╚═╝╚══════╝╚══════╝ ╚═════╝ ╚═╝     ╚══════╝
-                      Secure CLI Password Manager
+                      Secure Password Manager
     """
-    print("\033[92m" + banner + "\033[0m")  # Green color text
+    print("\033[92m" + banner + "\033[0m")  
 
 # Loading Effect for Smooth Experience
 def loading_animation():
@@ -152,7 +153,9 @@ def menu():
         print("1️⃣ Add a new password")
         print("2️⃣ View saved passwords")
         print("3️⃣ Auto-generate and store a password")
-        print("4️⃣ Exit")
+        print("4️⃣ Edit an existing password")
+        print("5️⃣ Delete a password") 
+        print("6️⃣ Exit")
 
         choice = input("Enter choice: ")
 
@@ -161,8 +164,12 @@ def menu():
         elif choice == "2":
             view_passwords()
         elif choice == "3":
-            auto_generate_password()  # Call the auto-generate function
+            auto_generate_password()  
         elif choice == "4":
+            edit_password() 
+        elif choice == "5":
+            delete_password() 
+        elif choice == "6":
             print("[👋] Exiting... Stay Secure!")
             break
         else:
@@ -232,6 +239,93 @@ def auto_generate_password():
 
     print(f"[✅] Password for {website} saved securely!")
     print(f"Generated password: {password}")
+
+def edit_password():
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+
+    # Show saved entries
+    cursor.execute("SELECT id, website, username FROM passwords")
+    entries = cursor.fetchall()
+
+    if not entries:
+        print("[❌] No saved passwords found.")
+        return
+
+    print("\n[📂] Saved Passwords:")
+    for idx, (entry_id, website, username) in enumerate(entries, start=1):
+        print(f"{idx}. {website} ({username})")
+
+    try:
+        choice = int(input("Enter the number of the password you want to edit: ")) - 1
+        if choice < 0 or choice >= len(entries):
+            print("[❌] Invalid choice!")
+            return
+
+        selected_id = entries[choice][0]
+
+        # Ask if they want to enter a password manually or generate one
+        option = input("Do you want to enter a new password (E) or auto-generate one (A)? ").strip().lower()
+        if option == 'e':
+            new_password = input("Enter new password: ")
+        elif option == 'a':
+            new_password = generate_random_password()
+            print(f"[🔑] Generated Password: {new_password}")
+        else:
+            print("[❌] Invalid option.")
+            return
+
+        encrypted_password = encrypt_password(new_password)
+
+        # Update in database
+        cursor.execute("UPDATE passwords SET password = ? WHERE id = ?", (encrypted_password, selected_id))
+        conn.commit()
+        conn.close()
+        print("[✅] Password updated successfully!")
+
+    except ValueError:
+        print("[❌] Invalid input! Please enter a number.")
+
+# Function to delete an existing password
+def delete_password():
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+
+    # Display existing saved passwords
+    cursor.execute("SELECT id, website FROM passwords")
+    passwords = cursor.fetchall()
+
+    if not passwords:
+        print("[❌] No stored passwords found to delete.")
+        conn.close()
+        return
+
+    print("\n[🔐] Saved Websites:")
+    for idx, website in passwords:
+        print(f"{idx}. {website}")
+
+    # Ask user to select a website to delete
+    try:
+        choice = int(input("\nEnter the number of the website you want to delete: "))
+        selected_password = next(p for p in passwords if p[0] == choice)
+    except (ValueError, StopIteration):
+        print("[❌] Invalid selection.")
+        conn.close()
+        return
+
+    website = selected_password[1]
+
+    # Confirm before deleting
+    confirmation = input(f"Are you sure you want to delete the password for {website}? (yes/no): ")
+    if confirmation.lower() == 'yes':
+        # Delete the selected password from the database
+        cursor.execute("DELETE FROM passwords WHERE id = ?", (choice,))
+        conn.commit()
+        print(f"[✅] Password for {website} deleted successfully!")
+    else:
+        print("[❌] Deletion canceled.")
+
+    conn.close()
 
 
 # Run startup sequence
