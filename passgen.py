@@ -155,7 +155,8 @@ def menu():
         print("3️⃣ Auto-generate and store a password")
         print("4️⃣ Edit an existing password")
         print("5️⃣ Delete a password") 
-        print("6️⃣ Exit")
+        print("6️⃣ Change Master Password")
+        print("7️⃣ Exit")
 
         choice = input("Enter choice: ")
 
@@ -170,6 +171,8 @@ def menu():
         elif choice == "5":
             delete_password() 
         elif choice == "6":
+            change_master_password()
+        elif choice == "7":
             print("[👋] Exiting... Stay Secure!")
             break
         else:
@@ -326,7 +329,49 @@ def delete_password():
         print("[❌] Deletion canceled.")
 
     conn.close()
+def change_master_password():
+    print("\n[🔑] Change Master Password")
+    
+    # Verify the current master password
+    current_password = getpass("[🔐] Enter your current master password: ")
+    
+    # Connect to the database and retrieve the stored hash
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("SELECT password FROM master")
+    stored_password = cursor.fetchone()[0]
+    conn.close()
 
+    # Compare the entered current password with the stored hash
+    if hash_password(current_password) != stored_password:
+        print("[❌] Incorrect master password. Cannot change password.")
+        return
+
+    # Ask for the new master password and confirm it
+    new_password = getpass("[🔑] Enter your new master password: ")
+    confirm_password = getpass("[🔑] Confirm your new master password: ")
+
+    # Check if the new passwords match
+    if new_password != confirm_password:
+        print("[❌] Passwords do not match. Please try again.")
+        return
+    
+    # Optionally, check password complexity (e.g., length, characters)
+    if len(new_password) < 8:
+        print("[❌] The password must be at least 8 characters long.")
+        return
+
+    # Hash and store the new password
+    new_hashed_password = hash_password(new_password)
+    
+    # Update the stored password in the database
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("UPDATE master SET password = ? WHERE id = 1", (new_hashed_password,))
+    conn.commit()
+    conn.close()
+
+    print("[✅] Master password updated successfully!")
 
 # Run startup sequence
 display_banner()
